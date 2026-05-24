@@ -30,7 +30,6 @@ public class CashierController {
                 if ("Minuman".equalsIgnoreCase(kategori)) {
                     list.add(new Minuman(id, nama, harga, stok, deskripsi, kategori, false));
                 } else {
-                    // Default to Makanan for other categories or "Makanan" specifically
                     list.add(new Makanan(id, nama, harga, stok, deskripsi, kategori, 0));
                 }
             }
@@ -44,9 +43,8 @@ public class CashierController {
         Connection conn = null;
         try {
             conn = DatabaseHelper.getConnection();
-            conn.setAutoCommit(false); // Start transaction
+            conn.setAutoCommit(false);
 
-            // 1. Insert into transactions
             String sqlTx = "INSERT INTO transactions (total) VALUES (?)";
             PreparedStatement psTx = conn.prepareStatement(sqlTx, Statement.RETURN_GENERATED_KEYS);
             psTx.setDouble(1, totalAmount);
@@ -63,7 +61,6 @@ public class CashierController {
                 return false;
             }
 
-            // 2. Insert transaction_items & update foods stok
             String sqlItem = "INSERT INTO transaction_items (transaction_id, food_id, qty, subtotal) VALUES (?, ?, ?, ?)";
             String sqlStock = "UPDATE foods SET stok = stok - ? WHERE id = ?";
             
@@ -71,14 +68,12 @@ public class CashierController {
             PreparedStatement psStock = conn.prepareStatement(sqlStock);
 
             for (CartItem item : cartItems) {
-                // Transaction item
                 psItem.setInt(1, txId);
                 psItem.setInt(2, item.getMenu().getId());
                 psItem.setInt(3, item.getJumlah());
                 psItem.setDouble(4, item.getSubtotal());
                 psItem.addBatch();
 
-                // Update stock
                 psStock.setInt(1, item.getJumlah());
                 psStock.setInt(2, item.getMenu().getId());
                 psStock.addBatch();
@@ -87,7 +82,7 @@ public class CashierController {
             psItem.executeBatch();
             psStock.executeBatch();
 
-            conn.commit(); // Commit transaction
+            conn.commit();
             return true;
         } catch (SQLException e) {
             if (conn != null) {

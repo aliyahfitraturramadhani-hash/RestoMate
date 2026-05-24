@@ -1,5 +1,50 @@
-# Ignore Gradle project-specific cache directory
-.gradle
+# Gradle cache & config
+.gradle/
+.gradle-cache/
+gradle-app.setting
+.gradle-task-name-cache
 
-# Ignore Gradle build output directory
-build
+# Build output directories
+/build/
+/out/
+/bin/
+/target/
+
+# Compiled Java classes
+*.class
+
+# Java archives (opsional, jika tidak ingin commit hasil build)
+*.jar
+*.war
+*.ear
+
+# Gradle wrapper (JANGAN di-ignore)
+!gradlew
+!gradlew.bat
+!gradle-wrapper.jar
+!gradle-wrapper.properties
+
+# Logs
+*.log
+logs/
+
+# JVM crash logs
+hs_err_pid*
+replay_pid*
+
+# IDE-specific files
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+# Eclipse
+.project
+.classpath
+.settings/
+# VS Code
+.vscode/
+
+# OS-specific files
+.DS_Store
+Thumbs.db

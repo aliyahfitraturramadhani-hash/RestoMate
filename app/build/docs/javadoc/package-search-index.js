@@ -1,0 +1,1 @@
+packageSearchIndex = [{"l":"All Packages","u":"allpackages-index.html"},{"l":"restomate"},{"l":"restomate.controller"},{"l":"restomate.database"},{"l":"restomate.model"},{"l":"restomate.view"}];updateSearchResults();

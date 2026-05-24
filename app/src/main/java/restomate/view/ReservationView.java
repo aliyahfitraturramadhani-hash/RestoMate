@@ -52,7 +52,6 @@ public class ReservationView {
         HBox mainLayout = new HBox(30);
         mainLayout.setAlignment(Pos.TOP_CENTER);
 
-        // Left Panel: Table List
         VBox listPanel = new VBox(15);
         listPanel.setPrefWidth(450);
         HBox.setHgrow(listPanel, Priority.ALWAYS);
@@ -85,7 +84,6 @@ public class ReservationView {
 
         listPanel.getChildren().addAll(listHeader, scrollPane, legendBox);
 
-        // Right Panel: Reservation Form
         VBox formPanel = new VBox(15);
         formPanel.setPrefWidth(350);
         formPanel.setStyle("-fx-background-color: white; -fx-padding: 20; -fx-background-radius: 10; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 5, 0, 0, 2);");
@@ -160,17 +158,17 @@ public class ReservationView {
         item.setPadding(new Insets(10));
         item.setPrefHeight(60);
         
-        String color = "#2ECC71"; // Green
+        String color = "#2ECC71";
         String statusText = "KOSONG";
         String infoText = "";
 
         if (res != null) {
             infoText = " - " + res.getNamaPelanggan() + " (" + res.getJamReservasi() + ")";
             if ("Reserved".equals(res.getStatus())) {
-                color = "#F1C40F"; // Yellow
+                color = "#F1C40F";
                 statusText = "RESERVED";
             } else if ("Dipakai".equals(res.getStatus())) {
-                color = "#E74C3C"; // Red
+                color = "#E74C3C";
                 statusText = "DIPAKAI";
             }
         }

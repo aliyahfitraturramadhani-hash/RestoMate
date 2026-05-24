@@ -54,12 +54,10 @@ public class CashierView {
         titleLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 28));
         titleLabel.setStyle("-fx-text-fill: #2C3E50;");
 
-        // Split Layout: Left (Menu) | Right (Cart)
         HBox mainLayout = new HBox(20);
         mainLayout.setAlignment(Pos.TOP_CENTER);
         VBox.setVgrow(mainLayout, Priority.ALWAYS);
 
-        // --- Left Panel: Menu List ---
         VBox leftPanel = new VBox(10);
         leftPanel.setPrefWidth(500);
         HBox.setHgrow(leftPanel, Priority.ALWAYS);
@@ -68,7 +66,6 @@ public class CashierView {
         Label menuTitle = new Label("Daftar Menu Tersedia");
         menuTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
 
-        // Search Bar
         txtSearch = new TextField();
         txtSearch.setPromptText("Cari Menu...");
         txtSearch.setPrefHeight(35);
@@ -115,8 +112,6 @@ public class CashierView {
 
         leftPanel.getChildren().addAll(menuTitle, txtSearch, tableMenu, btnAddCart);
 
-
-        // --- Right Panel: Cart ---
         VBox rightPanel = new VBox(10);
         rightPanel.setPrefWidth(400);
         HBox.setHgrow(rightPanel, Priority.ALWAYS);
@@ -171,7 +166,6 @@ public class CashierView {
 
         rightPanel.getChildren().addAll(cartTitle, tableCart, totalBox, actionCartBox);
 
-        // Add to Main Layout
         mainLayout.getChildren().addAll(leftPanel, rightPanel);
         
         view.getChildren().addAll(titleLabel, mainLayout);
@@ -190,7 +184,6 @@ public class CashierView {
             return;
         }
 
-        // Custom Dialog for Qty and Note
         Dialog<Pair<String, String>> dialog = new Dialog<>();
         dialog.setTitle("Tambah ke Keranjang");
         dialog.setHeaderText("Pesanan: " + selectedMenu.getNama());
@@ -232,7 +225,6 @@ public class CashierView {
 
                 if (qty <= 0) throw new NumberFormatException();
 
-                // Cek total stok
                 int currentTotalQtyInCart = 0;
                 CartItem existingItemWithSameNote = null;
                 for (CartItem item : cartList) {
@@ -288,7 +280,6 @@ public class CashierView {
             return;
         }
 
-        // Konfirmasi Pembayaran
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
         confirm.setTitle("Konfirmasi Pembayaran");
         confirm.setHeaderText(null);
@@ -298,13 +289,12 @@ public class CashierView {
         if (result.isPresent() && result.get() == ButtonType.OK) {
             boolean success = controller.processPayment(cartList, totalHarga);
             if (success) {
-                // Cetak Struk ke file
                 cetakStruk(new ArrayList<>(cartList), totalHarga);
 
                 showAlert(Alert.AlertType.INFORMATION, "Pembayaran Berhasil", "Transaksi berhasil disimpan dan stok telah diperbarui.");
                 cartList.clear();
                 updateTotal();
-                loadMenuData(); // Reload menu to get updated stock
+                loadMenuData();
             } else {
                 showAlert(Alert.AlertType.ERROR, "Pembayaran Gagal", "Terjadi kesalahan saat memproses transaksi.");
             }
@@ -316,25 +306,37 @@ public class CashierView {
         String fileName = "struk_" + timestamp + ".txt";
         
         try (FileWriter writer = new FileWriter(fileName)) {
-            writer.write("========================================\n");
-            writer.write("           RESTOMATE RECEIPT            \n");
-            writer.write("========================================\n");
-            writer.write("Waktu: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + "\n");
-            writer.write("----------------------------------------\n");
+            writer.write("========================================"
+");
+            writer.write("           RESTOMATE RECEIPT            
+");
+            writer.write("========================================
+");
+            writer.write("Waktu: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + "
+");
+            writer.write("----------------------------------------
+");
             
             for (CartItem item : cart) {
-                writer.write(String.format("%-20s x%-3d Rp %10.2f\n", 
+                writer.write(String.format("%-20s x%-3d Rp %10.2f
+", 
                     item.getNamaMenu(), item.getJumlah(), item.getSubtotal()));
                 if (item.getCatatan() != null && !item.getCatatan().trim().isEmpty()) {
-                    writer.write("  Catatan: " + item.getCatatan() + "\n");
+                    writer.write("  Catatan: " + item.getCatatan() + "
+");
                 }
             }
             
-            writer.write("----------------------------------------\n");
-            writer.write(String.format("TOTAL:                   Rp %10.2f\n", total));
-            writer.write("========================================\n");
-            writer.write("       Terima kasih atas kunjungan Anda! \n");
-            writer.write("========================================\n");
+            writer.write("----------------------------------------
+");
+            writer.write(String.format("TOTAL:                   Rp %10.2f
+", total));
+            writer.write("========================================
+");
+            writer.write("       Terima kasih atas kunjungan Anda! 
+");
+            writer.write("========================================
+");
             
         } catch (IOException e) {
             System.err.println("Gagal mencetak struk: " + e.getMessage());

@@ -81,18 +81,14 @@ public class DatabaseHelper {
             stmt.execute(usersTable);
             stmt.execute(foodsTable);
             
-            // Migration for existing database: add deskripsi column if not exists
             try {
                 stmt.execute("ALTER TABLE foods ADD COLUMN deskripsi TEXT");
             } catch (SQLException e) {
-                // Column might already exist
             }
 
-            // Migration for existing database: add tanggal_reservasi column if not exists
             try {
                 stmt.execute("ALTER TABLE reservations ADD COLUMN tanggal_reservasi TEXT");
             } catch (SQLException e) {
-                // Column might already exist
             }
             
             stmt.execute(transactionsTable);
@@ -100,7 +96,6 @@ public class DatabaseHelper {
             stmt.execute(reservationsTable);
             stmt.execute(tablesTable);
 
-            // Insert default meja if empty
             ResultSet rsMeja = stmt.executeQuery("SELECT COUNT(*) FROM tables");
             if (rsMeja.next() && rsMeja.getInt(1) == 0) {
                 for (int i = 1; i <= 5; i++) {
@@ -108,7 +103,6 @@ public class DatabaseHelper {
                 }
             }
 
-            // Insert default admin user if it does not exist
             if (!userExists(conn, "admin")) {
                 String insertUser = "INSERT INTO users (username, password) VALUES ('admin', 'admin123')";
                 stmt.execute(insertUser);

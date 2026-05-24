@@ -39,7 +39,6 @@ public class ManageFoodView {
         titleLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 28));
         titleLabel.setStyle("-fx-text-fill: #2C3E50;");
 
-        // Form Section
         GridPane formGrid = new GridPane();
         formGrid.setHgap(15);
         formGrid.setVgap(15);
@@ -97,7 +96,6 @@ public class ManageFoodView {
         buttonBox.getChildren().addAll(btnTambah, btnUpdate, btnHapus, btnClear);
         formGrid.add(buttonBox, 0, 3, 4, 1);
 
-        // Search Section
         txtSearch = new TextField();
         txtSearch.setPromptText("Cari Makanan...");
         txtSearch.setPrefHeight(35);
@@ -111,7 +109,6 @@ public class ManageFoodView {
             }
         });
 
-        // Table Section
         table = new TableView<>();
         
         TableColumn<MenuRestoran, Integer> colId = new TableColumn<>("ID");
@@ -160,9 +157,6 @@ public class ManageFoodView {
             String deskripsi = txtDeskripsi.getText();
             
             MenuRestoran menu;
-            // Defaults to Makanan if logic doesn't specify, but admin types category freely now.
-            // Using Makanan as a generic wrapper or we could use a concrete non-abstract Menu class.
-            // But let's keep Makanan for now and use 0 for pedas level as default.
             menu = new Makanan(0, nama, harga, stok, deskripsi, kategori, 0);
 
             if (controller.addFood(menu)) {
