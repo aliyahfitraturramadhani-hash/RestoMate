@@ -1,50 +1,42 @@
-# Gradle cache & config
-.gradle/
-.gradle-cache/
-gradle-app.setting
-.gradle-task-name-cache
-
-# Build output directories
-/build/
-/out/
-/bin/
-/target/
-
-# Compiled Java classes
+# Compiled class file
 *.class
 
-# Java archives (opsional, jika tidak ingin commit hasil build)
-*.jar
-*.war
-*.ear
-
-# Gradle wrapper (JANGAN di-ignore)
-!gradlew
-!gradlew.bat
-!gradle-wrapper.jar
-!gradle-wrapper.properties
-
-# Logs
+# Log files
 *.log
-logs/
 
-# JVM crash logs
-hs_err_pid*
-replay_pid*
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
 
-# IDE-specific files
-# IntelliJ IDEA
-.idea/
-*.iml
-*.ipr
-*.iws
-# Eclipse
+# Ignore the extracted gradle distribution folder
+gradle-*/
+
+# VSCode (Visual Studio Code)
+.vscode/
+*.code-workspace
 .project
 .classpath
 .settings/
-# VS Code
-.vscode/
+bin/
 
-# OS-specific files
+# SQLite Database
+# We ignore the database so that local testing data isn't pushed to GitHub
+restaurant.db
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# RestoMate Generated Reports
+Laporan_RestoMate_*.txt
+
+# OS generated files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db

@@ -1,0 +1,98 @@
+package com.restomate.utils;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
+
+public class Database {
+    private static final String URL = "jdbc:sqlite:restaurant.db?busy_timeout=3000";
+
+    public static Connection getConnection() throws SQLException {
+        Connection conn = DriverManager.getConnection(URL);
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute("PRAGMA foreign_keys = ON;");
+        }
+        return conn;
+    }
+
+    public static void initializeDatabase() {
+        try (Connection conn = getConnection(); Statement stmt = conn.createStatement()) {
+
+            stmt.execute("CREATE TABLE IF NOT EXISTS users (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "username TEXT NOT NULL UNIQUE, " +
+                    "password TEXT NOT NULL" +
+                    ");");
+
+            stmt.execute("CREATE TABLE IF NOT EXISTS menus (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "nama TEXT NOT NULL, " +
+                    "harga REAL NOT NULL, " +
+                    "kategori TEXT NOT NULL, " +
+                    "stok INTEGER DEFAULT 0, " +
+                    "gambar TEXT, " +
+                    "tingkat_pedas TEXT, " +
+                    "is_dingin INTEGER DEFAULT 0" +
+                    ");");
+
+            stmt.execute("CREATE TABLE IF NOT EXISTS transactions (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "total REAL NOT NULL, " +
+                    "metode_pembayaran TEXT NOT NULL, " +
+                    "catatan TEXT, " +
+                    "created_at DATETIME DEFAULT CURRENT_TIMESTAMP" +
+                    ");");
+                    
+            try {
+                stmt.execute("ALTER TABLE transactions ADD COLUMN catatan TEXT;");
+            } catch (SQLException ignore) { }
+
+            stmt.execute("CREATE TABLE IF NOT EXISTS transaction_items (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "transaction_id INTEGER, " +
+                    "menu_id INTEGER, " +
+                    "qty INTEGER NOT NULL, " +
+                    "subtotal REAL NOT NULL, " +
+                    "FOREIGN KEY(transaction_id) REFERENCES transactions(id) ON DELETE CASCADE, " +
+                    "FOREIGN KEY(menu_id) REFERENCES menus(id)" +
+                    ");");
+
+            stmt.execute("CREATE TABLE IF NOT EXISTS reservations (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "nama_pelanggan TEXT NOT NULL, " +
+                    "nomor_meja INTEGER NOT NULL, " +
+                    "waktu_reservasi TEXT NOT NULL, " +
+                    "status TEXT DEFAULT 'AKTIF'" +
+                    ");");
+
+            try {
+                var rs = stmt.executeQuery("SELECT count(*) FROM users WHERE username = 'admin'");
+                if (rs.next() && rs.getInt(1) == 0) {
+                    String hashedPassword = hashPassword("admin");
+                    stmt.execute("INSERT INTO users (username, password) VALUES ('admin', '" + hashedPassword + "')");
+                    System.out.println("Default admin user created.");
+                }
+            } catch (Exception e) {
+                System.err.println("Failed to insert default admin: " + e.getMessage());
+            }
+
+            System.out.println("Database initialization completed.");
+        } catch (SQLException e) {
+            System.err.println("Database initialization failed: " + e.getMessage());
+        }
+    }
+
+    public static String hashPassword(String password) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(password.getBytes());
+            return Base64.getEncoder().encodeToString(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("SHA-256 algorithm not found", e);
+        }
+    }
+}

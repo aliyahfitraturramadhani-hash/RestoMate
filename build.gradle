@@ -1,0 +1,25 @@
+plugins {
+    id 'java'
+    id 'application'
+    id 'org.openjfx.javafxplugin' version '0.1.0'
+}
+
+group = 'com.restomate'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.xerial:sqlite-jdbc:3.45.2.0'
+}
+
+javafx {
+    version = "21"
+    modules = [ 'javafx.controls', 'javafx.graphics' ]
+}
+
+application {
+    mainClass = 'com.restomate.Main'
+}
