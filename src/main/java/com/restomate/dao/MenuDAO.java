@@ -33,7 +33,6 @@ public class MenuDAO {
                         rs.getString("nama"),
                         rs.getDouble("harga"),
                         rs.getInt("stok"),
-                        rs.getString("gambar"),
                         rs.getString("tingkat_pedas")
                     );
                     list.add(m);
@@ -43,7 +42,6 @@ public class MenuDAO {
                         rs.getString("nama"),
                         rs.getDouble("harga"),
                         rs.getInt("stok"),
-                        rs.getString("gambar"),
                         rs.getInt("is_dingin") == 1 // Di SQLite kita pakai 1 untuk true, 0 untuk false
                     );
                     list.add(m);
@@ -57,7 +55,7 @@ public class MenuDAO {
 
     // Nambah menu baru ke database.
     public boolean addMenu(MenuRestoran menu) {
-        String query = "INSERT INTO menus (nama, harga, kategori, stok, gambar, tingkat_pedas, is_dingin) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        String query = "INSERT INTO menus (nama, harga, kategori, stok, tingkat_pedas, is_dingin) VALUES (?, ?, ?, ?, ?, ?)";
         
         try (Connection conn = Database.getConnection();
              PreparedStatement stmt = conn.prepareStatement(query)) {
@@ -66,17 +64,16 @@ public class MenuDAO {
             stmt.setDouble(2, menu.getHarga());
             stmt.setString(3, menu.getKategori());
             stmt.setInt(4, menu.getStok());
-            stmt.setString(5, menu.getGambar());
             
             // Cek dulu ini Makanan apa Minuman, biar field spesifiknya gak salah isi
             if (menu instanceof Makanan) {
                 Makanan m = (Makanan) menu;
-                stmt.setString(6, m.getTingkatPedas());
-                stmt.setNull(7, java.sql.Types.INTEGER); // Makanan gak pake is_dingin
+                stmt.setString(5, m.getTingkatPedas());
+                stmt.setNull(6, java.sql.Types.INTEGER); // Makanan gak pake is_dingin
             } else if (menu instanceof Minuman) {
                 Minuman m = (Minuman) menu;
-                stmt.setNull(6, java.sql.Types.VARCHAR); // Minuman gak pedes (kecuali kalau aneh)
-                stmt.setInt(7, m.isDingin() ? 1 : 0);
+                stmt.setNull(5, java.sql.Types.VARCHAR); // Minuman gak pedes (kecuali kalau aneh)
+                stmt.setInt(6, m.isDingin() ? 1 : 0);
             }
             
             return stmt.executeUpdate() > 0;
@@ -89,7 +86,7 @@ public class MenuDAO {
 
     // Update menu yang udah ada. Hampir sama kayak nambah, bedanya pake UPDATE SET aja.
     public boolean updateMenu(MenuRestoran menu) {
-        String query = "UPDATE menus SET nama = ?, harga = ?, kategori = ?, stok = ?, gambar = ?, tingkat_pedas = ?, is_dingin = ? WHERE id = ?";
+        String query = "UPDATE menus SET nama = ?, harga = ?, kategori = ?, stok = ?, tingkat_pedas = ?, is_dingin = ? WHERE id = ?";
         
         try (Connection conn = Database.getConnection();
              PreparedStatement stmt = conn.prepareStatement(query)) {
@@ -98,20 +95,19 @@ public class MenuDAO {
             stmt.setDouble(2, menu.getHarga());
             stmt.setString(3, menu.getKategori());
             stmt.setInt(4, menu.getStok());
-            stmt.setString(5, menu.getGambar());
             
             if (menu instanceof Makanan) {
                 Makanan m = (Makanan) menu;
-                stmt.setString(6, m.getTingkatPedas());
-                stmt.setNull(7, java.sql.Types.INTEGER);
+                stmt.setString(5, m.getTingkatPedas());
+                stmt.setNull(6, java.sql.Types.INTEGER);
             } else if (menu instanceof Minuman) {
                 Minuman m = (Minuman) menu;
-                stmt.setNull(6, java.sql.Types.VARCHAR);
-                stmt.setInt(7, m.isDingin() ? 1 : 0);
+                stmt.setNull(5, java.sql.Types.VARCHAR);
+                stmt.setInt(6, m.isDingin() ? 1 : 0);
             }
             
             // Jangan lupa ID-nya buat klausa WHERE
-            stmt.setInt(8, menu.getId());
+            stmt.setInt(7, menu.getId());
             
             return stmt.executeUpdate() > 0;
             

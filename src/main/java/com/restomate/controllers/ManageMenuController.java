@@ -13,6 +13,9 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 
 import java.util.List;
+import java.io.*;
+import javafx.stage.FileChooser;
+import javafx.scene.control.TableRow;
 
 public class ManageMenuController {
 
@@ -22,7 +25,6 @@ public class ManageMenuController {
     
     // Simpan semua data ori di sini biar gampang difilter
     private List<MenuRestoran> allMenus;
-    private java.io.File selectedImageFile = null;
 
     public ManageMenuController(ManageMenuView view) {
         this.view = view;
@@ -77,6 +79,44 @@ public class ManageMenuController {
         table.getColumns().addAll(colId, colNama, colKat, colHarga, colStok, colDetail);
         table.setItems(menuList);
         
+        // Custom Row Factory for Row Highlighting (Stok Kritis)
+        table.setRowFactory(tv -> {
+            TableRow<MenuRestoran> row = new TableRow<MenuRestoran>() {
+                @Override
+                protected void updateItem(MenuRestoran item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || item == null) {
+                        setStyle("");
+                    } else if (isSelected()) {
+                        setStyle(""); // Default selection style
+                    } else if (item.getStok() == 0) {
+                        setStyle("-fx-background-color: #FFCDD2;"); // light red
+                    } else if (item.getStok() < 10) {
+                        setStyle("-fx-background-color: #FFF9C4;"); // light yellow
+                    } else {
+                        setStyle("");
+                    }
+                }
+            };
+            row.selectedProperty().addListener((obs, oldVal, newVal) -> {
+                MenuRestoran item = row.getItem();
+                if (item != null) {
+                    if (newVal) {
+                        row.setStyle(""); // Selected
+                    } else {
+                        if (item.getStok() == 0) {
+                            row.setStyle("-fx-background-color: #FFCDD2;");
+                        } else if (item.getStok() < 10) {
+                            row.setStyle("-fx-background-color: #FFF9C4;");
+                        } else {
+                            row.setStyle("");
+                        }
+                    }
+                }
+            });
+            return row;
+        });
+        
         // Event kalau baris tabel diklik, langsung oper datanya ke form sebelah kanan
         table.getSelectionModel().selectedItemProperty().addListener((obs, oldSel, newSel) -> {
             if (newSel != null) {
@@ -105,6 +145,39 @@ public class ManageMenuController {
         // Ambil data seger dari database
         allMenus = menuDAO.getAllMenus();
         applyFilters(); // Langsung terapkan filter yang lagi aktif
+        updateStats();
+    }
+    
+    private void updateStats() {
+        if (allMenus == null) {
+            view.getLblTotalMenu().setText("0");
+            view.getLblTotalMakanan().setText("0");
+            view.getLblTotalMinuman().setText("0");
+            view.getLblTotalKritis().setText("0");
+            return;
+        }
+        
+        int total = allMenus.size();
+        int makanan = 0;
+        int minuman = 0;
+        int kritis = 0;
+        
+        for (MenuRestoran menu : allMenus) {
+            if ("MAKANAN".equalsIgnoreCase(menu.getKategori())) {
+                makanan++;
+            } else if ("MINUMAN".equalsIgnoreCase(menu.getKategori())) {
+                minuman++;
+            }
+            
+            if (menu.getStok() < 10) {
+                kritis++;
+            }
+        }
+        
+        view.getLblTotalMenu().setText(String.valueOf(total));
+        view.getLblTotalMakanan().setText(String.valueOf(makanan));
+        view.getLblTotalMinuman().setText(String.valueOf(minuman));
+        view.getLblTotalKritis().setText(String.valueOf(kritis));
     }
     
     // Fungsi khusus buat nge-filter list
@@ -138,12 +211,7 @@ public class ManageMenuController {
         view.getTxtTingkatPedas().setText("");
         view.getChkDingin().setSelected(false);
         
-        selectedImageFile = null;
-        if (menu.getGambar() != null && !menu.getGambar().isEmpty()) {
-            view.getLblNamaGambar().setText(menu.getGambar());
-        } else {
-            view.getLblNamaGambar().setText("Belum ada gambar");
-        }
+
         
         if (menu instanceof Makanan) {
             view.getTxtTingkatPedas().setText(((Makanan) menu).getTingkatPedas());
@@ -161,27 +229,133 @@ public class ManageMenuController {
         view.getChkDingin().setSelected(false);
         view.getCmbKategori().setValue("MAKANAN"); 
         
-        selectedImageFile = null;
-        view.getLblNamaGambar().setText("Belum ada gambar");
-        
         view.getTableMenu().getSelectionModel().clearSelection();
     }
 
     private void setupActions() {
-        // Pilih Gambar
-        view.getBtnPilihGambar().setOnAction(e -> {
-            javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
-            fileChooser.setTitle("Pilih Gambar Menu");
-            fileChooser.getExtensionFilters().addAll(
-                new javafx.stage.FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.jpeg")
-            );
-            java.io.File file = fileChooser.showOpenDialog(view.getView().getScene().getWindow());
-            if (file != null) {
-                selectedImageFile = file;
-                view.getLblNamaGambar().setText(file.getName());
+        // Input Filter hanya Angka
+        view.getTxtHarga().textProperty().addListener((obs, oldVal, newVal) -> {
+            if (!newVal.matches("\\d*")) {
+                view.getTxtHarga().setText(newVal.replaceAll("[^\\d]", ""));
             }
         });
-        
+        view.getTxtStok().textProperty().addListener((obs, oldVal, newVal) -> {
+            if (!newVal.matches("\\d*")) {
+                view.getTxtStok().setText(newVal.replaceAll("[^\\d]", ""));
+            }
+        });
+
+        // Duplikat Data
+        view.getBtnDuplicate().setOnAction(e -> {
+            view.getTxtId().clear(); // Kosongkan ID agar dianggap item baru
+            view.getTableMenu().getSelectionModel().clearSelection();
+            showAlert(Alert.AlertType.INFORMATION, "Siap Duplikat", "ID telah dikosongkan. Silakan edit nama/harga/stok dan klik 'Simpan Data' untuk menyimpan sebagai menu baru.");
+        });
+
+        // Ekspor CSV
+        view.getBtnExportCsv().setOnAction(e -> {
+            if (allMenus == null || allMenus.isEmpty()) {
+                showAlert(Alert.AlertType.WARNING, "Data Kosong", "Tidak ada data menu untuk diekspor!");
+                return;
+            }
+            
+            FileChooser fileChooser = new FileChooser();
+            fileChooser.setTitle("Ekspor Data Menu ke CSV");
+            fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV Files", "*.csv"));
+            fileChooser.setInitialFileName("menu_restoran.csv");
+            
+            File file = fileChooser.showSaveDialog(view.getView().getScene().getWindow());
+            if (file != null) {
+                try (PrintWriter writer = new PrintWriter(file)) {
+                    writer.println("nama,harga,kategori,stok,tingkat_pedas,is_dingin");
+                    
+                    for (MenuRestoran menu : allMenus) {
+                        String pedas = "";
+                        String dingin = "0";
+                        if (menu instanceof Makanan) {
+                            pedas = ((Makanan) menu).getTingkatPedas();
+                            if (pedas == null) pedas = "";
+                        } else if (menu instanceof Minuman) {
+                            dingin = ((Minuman) menu).isDingin() ? "1" : "0";
+                        }
+                        
+                        String nama = menu.getNama();
+                        if (nama.contains(",")) {
+                            nama = "\"" + nama + "\"";
+                        }
+                        
+                        writer.printf("%s,%.0f,%s,%d,%s,%s\n", 
+                            nama, menu.getHarga(), menu.getKategori(), menu.getStok(), pedas, dingin);
+                    }
+                    showAlert(Alert.AlertType.INFORMATION, "Ekspor Sukses", "Data menu berhasil diekspor ke: " + file.getName());
+                } catch (IOException ex) {
+                    showAlert(Alert.AlertType.ERROR, "Ekspor Gagal", "Gagal menulis berkas CSV: " + ex.getMessage());
+                }
+            }
+        });
+
+        // Impor CSV
+        view.getBtnImportCsv().setOnAction(e -> {
+            FileChooser fileChooser = new FileChooser();
+            fileChooser.setTitle("Impor Data Menu dari CSV");
+            fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV Files", "*.csv"));
+            
+            File file = fileChooser.showOpenDialog(view.getView().getScene().getWindow());
+            if (file != null) {
+                try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+                    String line = reader.readLine(); // Skip header
+                    if (line == null) {
+                        showAlert(Alert.AlertType.WARNING, "File Kosong", "Berkas CSV tidak memiliki baris data!");
+                        return;
+                    }
+                    
+                    int successCount = 0;
+                    int failCount = 0;
+                    
+                    while ((line = reader.readLine()) != null) {
+                        if (line.trim().isEmpty()) continue;
+                        
+                        String[] tokens = parseCsvLine(line);
+                        if (tokens.length < 6) {
+                            failCount++;
+                            continue;
+                        }
+                        
+                        try {
+                            String nama = tokens[0].trim();
+                            double harga = Double.parseDouble(tokens[1].trim());
+                            String kategori = tokens[2].trim().toUpperCase();
+                            int stok = Integer.parseInt(tokens[3].trim());
+                            String pedas = tokens[4].trim();
+                            boolean dingin = "1".equals(tokens[5].trim());
+                            
+                            MenuRestoran menu;
+                            if ("MAKANAN".equals(kategori)) {
+                                menu = new Makanan(0, nama, harga, stok, pedas);
+                            } else {
+                                menu = new Minuman(0, nama, harga, stok, dingin);
+                            }
+                            
+                            boolean success = menuDAO.addMenu(menu);
+                            if (success) {
+                                successCount++;
+                            } else {
+                                failCount++;
+                            }
+                        } catch (Exception ex) {
+                            failCount++;
+                        }
+                    }
+                    
+                    loadData(); // Refresh UI & Stats
+                    showAlert(Alert.AlertType.INFORMATION, "Impor Selesai", 
+                        String.format("Proses impor selesai.\nSukses: %d menu\nGagal: %d menu", successCount, failCount));
+                } catch (IOException ex) {
+                    showAlert(Alert.AlertType.ERROR, "Impor Gagal", "Gagal membaca berkas CSV: " + ex.getMessage());
+                }
+            }
+        });
+
         // Simpan Data (Insert atau Update)
         view.getBtnSave().setOnAction(e -> {
             try {
@@ -198,30 +372,13 @@ public class ManageMenuController {
                 int stok = Integer.parseInt(stokText);
                 String kategori = view.getCmbKategori().getValue();
                 
-                MenuRestoran existing = view.getTableMenu().getSelectionModel().getSelectedItem();
-                String gambarName = (existing != null && !view.getTxtId().getText().isEmpty()) ? existing.getGambar() : null;
-
-                if (selectedImageFile != null) {
-                    try {
-                        java.nio.file.Path destDir = java.nio.file.Paths.get("src/main/resources/images");
-                        if (!java.nio.file.Files.exists(destDir)) {
-                            java.nio.file.Files.createDirectories(destDir);
-                        }
-                        gambarName = System.currentTimeMillis() + "_" + selectedImageFile.getName();
-                        java.nio.file.Path destPath = destDir.resolve(gambarName);
-                        java.nio.file.Files.copy(selectedImageFile.toPath(), destPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                    } catch (Exception ex) {
-                        System.err.println("Gagal copy gambar: " + ex.getMessage());
-                    }
-                }
-                
                 MenuRestoran menu;
                 if ("MAKANAN".equals(kategori)) {
                     String pedas = view.getTxtTingkatPedas().getText();
-                    menu = new Makanan(0, nama, harga, stok, gambarName, pedas);
+                    menu = new Makanan(0, nama, harga, stok, pedas);
                 } else {
                     boolean dingin = view.getChkDingin().isSelected();
-                    menu = new Minuman(0, nama, harga, stok, gambarName, dingin);
+                    menu = new Minuman(0, nama, harga, stok, dingin);
                 }
                 
                 String idStr = view.getTxtId().getText();
@@ -265,6 +422,25 @@ public class ManageMenuController {
         
         // Bersihkan Form
         view.getBtnClear().setOnAction(e -> clearForm());
+    }
+
+    private String[] parseCsvLine(String line) {
+        java.util.List<String> list = new java.util.ArrayList<>();
+        boolean inQuotes = false;
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < line.length(); i++) {
+            char c = line.charAt(i);
+            if (c == '"') {
+                inQuotes = !inQuotes;
+            } else if (c == ',' && !inQuotes) {
+                list.add(sb.toString());
+                sb.setLength(0);
+            } else {
+                sb.append(c);
+            }
+        }
+        list.add(sb.toString());
+        return list.toArray(new String[0]);
     }
 
     private void showAlert(Alert.AlertType type, String title, String content) {

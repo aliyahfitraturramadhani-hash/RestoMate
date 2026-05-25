@@ -8,6 +8,7 @@ import com.restomate.models.Minuman;
 import com.restomate.models.Transaction;
 import com.restomate.models.TransactionItem;
 import com.restomate.views.CashierView;
+import java.time.format.DateTimeFormatter;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -33,16 +34,19 @@ public class CashierController {
     private MenuDAO menuDAO;
     private TransactionDAO transactionDAO;
     private ObservableList<CartItem> cartItems; 
+    private ObservableList<MenuRestoran> menuItems;
 
     public CashierController(CashierView view) {
         this.view = view;
         this.menuDAO = new MenuDAO();
         this.transactionDAO = new TransactionDAO();
         this.cartItems = FXCollections.observableArrayList();
+        this.menuItems = FXCollections.observableArrayList();
         
         setupCartTable();
-        // Setup listener buat fitur baru (Search & Filter)
+        setupMenuTable();
         setupSearchAndFilter();
+        setupListeners();
         
         loadMenus();
         setupActions();
@@ -53,21 +57,67 @@ public class CashierController {
         
         TableColumn<CartItem, String> colName = new TableColumn<>("Item");
         colName.setCellValueFactory(data -> data.getValue().namaProperty());
-        colName.setPrefWidth(150);
+        colName.setPrefWidth(120);
         
         TableColumn<CartItem, Number> colQty = new TableColumn<>("Qty");
         colQty.setCellValueFactory(data -> data.getValue().qtyProperty());
-        colQty.setPrefWidth(50);
+        colQty.setPrefWidth(45);
+        colQty.setStyle("-fx-alignment: CENTER;");
         
         TableColumn<CartItem, String> colSubtotal = new TableColumn<>("Subtotal");
         colSubtotal.setCellValueFactory(data -> {
             java.text.NumberFormat formatter = java.text.NumberFormat.getInstance(new java.util.Locale("id", "ID"));
             return new SimpleStringProperty("Rp " + formatter.format(data.getValue().getSubtotal()));
         });
-        colSubtotal.setPrefWidth(100);
+        colSubtotal.setPrefWidth(95);
+
+        TableColumn<CartItem, CartItem> colAksi = new TableColumn<>("Aksi");
+        colAksi.setCellValueFactory(data -> new javafx.beans.property.SimpleObjectProperty<>(data.getValue()));
+        colAksi.setCellFactory(column -> new TableCell<CartItem, CartItem>() {
+            private final Button btnDel = new Button("🗑️");
+            {
+                btnDel.setStyle("-fx-background-color: #FFCDD2; -fx-text-fill: #D32F2F; -fx-font-weight: bold; -fx-background-radius: 5; -fx-padding: 3 8;");
+                btnDel.setOnMouseEntered(e -> btnDel.setStyle("-fx-background-color: #EF5350; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5; -fx-padding: 3 8; -fx-cursor: hand;"));
+                btnDel.setOnMouseExited(e -> btnDel.setStyle("-fx-background-color: #FFCDD2; -fx-text-fill: #D32F2F; -fx-font-weight: bold; -fx-background-radius: 5; -fx-padding: 3 8;"));
+            }
+            @Override
+            protected void updateItem(CartItem item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setGraphic(null);
+                } else {
+                    btnDel.setOnAction(e -> {
+                        cartItems.remove(item);
+                        updateTotal();
+                    });
+                    setGraphic(btnDel);
+                }
+            }
+        });
+        colAksi.setPrefWidth(50);
+        colAksi.setStyle("-fx-alignment: CENTER;");
         
-        table.getColumns().addAll(colName, colQty, colSubtotal);
+        table.getColumns().addAll(colName, colQty, colSubtotal, colAksi);
         table.setItems(cartItems);
+    }
+
+    private void setupListeners() {
+        // Listener Uang Dibayar
+        view.getTxtAmountPaid().textProperty().addListener((obs, oldVal, newVal) -> {
+            if (!newVal.matches("\\d*")) {
+                view.getTxtAmountPaid().setText(newVal.replaceAll("[^\\d]", ""));
+                return;
+            }
+            updateTotal();
+        });
+        
+        // Listener Diskon
+        view.getCmbDiscount().setOnAction(e -> updateTotal());
+        
+        // Listener Metode Pembayaran
+        view.getCmbPayment().setOnAction(e -> {
+            updateTotal();
+        });
     }
     
     // Fitur pencarian otomatis nge-refresh kartu tiap kali kita ngetik
@@ -87,32 +137,101 @@ public class CashierController {
         loadMenus();
     }
 
-    // Fungsi canggih buat ngambil data, ngefilter, dan ngerender jadi kartu
+    private void setupMenuTable() {
+        TableView<MenuRestoran> table = view.getMenuTable();
+
+        // 1. Column Nama Menu
+        TableColumn<MenuRestoran, String> colNama = new TableColumn<>("Nama Menu");
+        colNama.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getNama()));
+        colNama.setPrefWidth(180);
+
+        // 2. Column Kategori
+        TableColumn<MenuRestoran, String> colKategori = new TableColumn<>("Kategori");
+        colKategori.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getKategori()));
+        colKategori.setPrefWidth(100);
+
+        // 3. Column Harga
+        TableColumn<MenuRestoran, String> colHarga = new TableColumn<>("Harga");
+        colHarga.setCellValueFactory(data -> {
+            java.text.NumberFormat formatter = java.text.NumberFormat.getInstance(new java.util.Locale("id", "ID"));
+            return new SimpleStringProperty("Rp " + formatter.format(data.getValue().getHarga()));
+        });
+        colHarga.setPrefWidth(120);
+
+        // 4. Column Stok
+        TableColumn<MenuRestoran, String> colStok = new TableColumn<>("Stok");
+        colStok.setCellValueFactory(data -> new SimpleStringProperty(String.valueOf(data.getValue().getStok())));
+        colStok.setPrefWidth(70);
+        colStok.setStyle("-fx-alignment: CENTER;");
+
+        // 5. Column Keterangan
+        TableColumn<MenuRestoran, String> colDetail = new TableColumn<>("Keterangan");
+        colDetail.setCellValueFactory(data -> {
+            MenuRestoran menu = data.getValue();
+            if (menu instanceof Makanan) {
+                return new SimpleStringProperty("🌶️ Pedas: " + (((Makanan) menu).getTingkatPedas() != null ? ((Makanan) menu).getTingkatPedas() : "-"));
+            } else if (menu instanceof Minuman) {
+                return new SimpleStringProperty(((Minuman) menu).isDingin() ? "❄️ Dingin" : "🔥 Panas");
+            }
+            return new SimpleStringProperty("-");
+        });
+        colDetail.setPrefWidth(120);
+
+        // 6. Column Aksi
+        TableColumn<MenuRestoran, MenuRestoran> colAksi = new TableColumn<>("Aksi");
+        colAksi.setCellValueFactory(data -> new javafx.beans.property.SimpleObjectProperty<>(data.getValue()));
+        colAksi.setCellFactory(column -> new TableCell<MenuRestoran, MenuRestoran>() {
+            private final Button btnAdd = new Button("+ Keranjang");
+            {
+                btnAdd.setStyle("-fx-background-color: #2196F3; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5;");
+                btnAdd.setOnMouseEntered(e -> btnAdd.setStyle("-fx-background-color: #1976D2; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5; -fx-cursor: hand;"));
+                btnAdd.setOnMouseExited(e -> btnAdd.setStyle("-fx-background-color: #2196F3; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5;"));
+            }
+            @Override
+            protected void updateItem(MenuRestoran item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setGraphic(null);
+                } else {
+                    btnAdd.setOnAction(e -> addToCart(item));
+                    setGraphic(btnAdd);
+                }
+            }
+        });
+        colAksi.setPrefWidth(120);
+        colAksi.setStyle("-fx-alignment: CENTER;");
+
+        table.getColumns().addAll(colNama, colKategori, colHarga, colStok, colDetail, colAksi);
+        table.setItems(menuItems);
+
+        // Shortcut double click pada baris tabel menu
+        table.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 2) {
+                MenuRestoran selected = table.getSelectionModel().getSelectedItem();
+                if (selected != null) {
+                    addToCart(selected);
+                }
+            }
+        });
+    }
+
     public void loadMenus() {
         List<MenuRestoran> menus = menuDAO.getAllMenus();
-        view.getMenuGrid().getChildren().clear();
+        menuItems.clear();
         
         if (menus == null || menus.isEmpty()) {
-            Label emptyLbl = new Label("Yah, belum ada menu nih di database. Tambahin lewat layar Kelola Menu dulu ya!");
-            emptyLbl.setFont(Font.font("Segoe UI", 16));
-            emptyLbl.setTextFill(Color.GRAY);
-            view.getMenuGrid().add(emptyLbl, 0, 0);
+            view.getMenuTable().setPlaceholder(new Label("Yah, belum ada menu nih di database. Tambahin lewat layar Kelola Menu dulu ya!"));
             return;
         }
         
-        // Ambil nilai filter saat ini
         String searchQuery = view.getTxtSearch().getText().toLowerCase();
         String filterCat = view.getCmbFilter().getValue();
-
-        int col = 0;
-        int row = 0;
-        int matchCount = 0;
         
         for (MenuRestoran menu : menus) {
             // Syarat 1: Stok masih ada
             if (menu.getStok() <= 0) continue;
             
-            // Syarat 2: Filter Kategori (kalau bukan "SEMUA", ya harus cocok)
+            // Syarat 2: Filter Kategori
             if (!"SEMUA".equals(filterCat) && !menu.getKategori().equalsIgnoreCase(filterCat)) {
                 continue;
             }
@@ -122,94 +241,12 @@ public class CashierController {
                 continue;
             }
             
-            VBox card = createMenuCard(menu);
-            view.getMenuGrid().add(card, col, row);
-            matchCount++;
-            
-            col++;
-            if (col == 4) {
-                col = 0;
-                row++;
-            }
+            menuItems.add(menu);
         }
         
-        // Kalau abis difilter ternyata gak ada yang cocok
-        if (matchCount == 0) {
-            Label emptyLbl = new Label("Gak nemu menu yang dicari nih. Coba kata kunci atau kategori lain.");
-            emptyLbl.setFont(Font.font("Segoe UI", 14));
-            emptyLbl.setTextFill(Color.GRAY);
-            view.getMenuGrid().add(emptyLbl, 0, 0);
+        if (menuItems.isEmpty()) {
+            view.getMenuTable().setPlaceholder(new Label("Gak nemu menu yang dicari nih. Coba kata kunci atau kategori lain."));
         }
-    }
-
-    private VBox createMenuCard(MenuRestoran menu) {
-        VBox card = new VBox(10);
-        card.setAlignment(Pos.CENTER);
-        card.setPadding(new Insets(15));
-        card.setPrefSize(180, 240);
-        card.setBackground(new Background(new BackgroundFill(Color.WHITE, new CornerRadii(10), Insets.EMPTY)));
-        
-        DropShadow shadow = new DropShadow();
-        shadow.setColor(Color.color(0, 0, 0, 0.1));
-        shadow.setRadius(5);
-        shadow.setOffsetY(3);
-        card.setEffect(shadow);
-        
-        Label lblName = new Label(menu.getNama());
-        lblName.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
-        lblName.setWrapText(true);
-        lblName.setAlignment(Pos.CENTER);
-        
-        java.text.NumberFormat formatter = java.text.NumberFormat.getInstance(new java.util.Locale("id", "ID"));
-        Label lblPrice = new Label("Rp " + formatter.format(menu.getHarga()));
-        lblPrice.setTextFill(Color.web("#2196F3"));
-        lblPrice.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
-        
-        String extraInfo = "";
-        if (menu instanceof Makanan) {
-            Makanan m = (Makanan) menu;
-            extraInfo = "Lv. Pedas: " + (m.getTingkatPedas() != null ? m.getTingkatPedas() : "-");
-        } else if (menu instanceof Minuman) {
-            Minuman m = (Minuman) menu;
-            extraInfo = m.isDingin() ? "❄️ Dingin" : "🔥 Panas";
-        }
-        Label lblExtra = new Label(extraInfo);
-        lblExtra.setTextFill(Color.GRAY);
-        
-        Label lblStok = new Label("Stok: " + menu.getStok());
-        lblStok.setFont(Font.font("Segoe UI", 12));
-        
-        Button btnAdd = new Button("+ Keranjang");
-        btnAdd.setStyle("-fx-background-color: #2196F3; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5;");
-        btnAdd.setMaxWidth(Double.MAX_VALUE);
-        
-        btnAdd.setOnMouseEntered(e -> {
-            btnAdd.setStyle("-fx-background-color: #1976D2; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5; -fx-cursor: hand;");
-            shadow.setRadius(10); 
-        });
-        btnAdd.setOnMouseExited(e -> {
-            btnAdd.setStyle("-fx-background-color: #2196F3; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5;");
-            shadow.setRadius(5);
-        });
-        
-        btnAdd.setOnAction(e -> addToCart(menu));
-        
-        String gambar = menu.getGambar();
-        if (gambar != null && !gambar.isEmpty()) {
-            try {
-                javafx.scene.image.Image img = new javafx.scene.image.Image("file:src/main/resources/images/" + gambar);
-                javafx.scene.image.ImageView imgView = new javafx.scene.image.ImageView(img);
-                imgView.setFitWidth(120);
-                imgView.setFitHeight(100);
-                imgView.setPreserveRatio(true);
-                card.getChildren().add(imgView);
-            } catch (Exception ex) {
-                System.err.println("Gagal load gambar: " + ex.getMessage());
-            }
-        }
-        
-        card.getChildren().addAll(lblName, lblPrice, lblExtra, lblStok, btnAdd);
-        return card;
     }
 
     private void addToCart(MenuRestoran menu) {
@@ -232,24 +269,79 @@ public class CashierController {
     }
 
     private void updateTotal() {
-        double total = 0;
+        double subtotal = 0;
         for (CartItem item : cartItems) {
-            total += item.getSubtotal();
+            subtotal += item.getSubtotal();
         }
+        
+        // Diskon
+        String discStr = view.getCmbDiscount().getValue();
+        double discPercent = 0;
+        if (discStr != null) {
+            discPercent = Double.parseDouble(discStr.replace("%", ""));
+        }
+        double discountAmount = subtotal * (discPercent / 100);
+        
+        // Pajak PB1 (10% dari nominal kena pajak)
+        double taxableAmount = subtotal - discountAmount;
+        double taxAmount = taxableAmount * 0.10;
+        
+        // Grand Total
+        double grandTotal = taxableAmount + taxAmount;
+        
         java.text.NumberFormat formatter = java.text.NumberFormat.getInstance(new java.util.Locale("id", "ID"));
-        view.getLblTotal().setText("Rp " + formatter.format(total));
+        
+        view.getLblSubtotal().setText("Rp " + formatter.format(subtotal));
+        view.getLblDiscountAmount().setText("Rp " + formatter.format(discountAmount));
+        view.getLblTaxAmount().setText("Rp " + formatter.format(taxAmount));
+        view.getLblTotal().setText("Rp " + formatter.format(grandTotal));
+        
+        updateChange(grandTotal);
+    }
+
+    private void updateChange(double grandTotal) {
+        String payment = view.getCmbPayment().getValue();
+        java.text.NumberFormat formatter = java.text.NumberFormat.getInstance(new java.util.Locale("id", "ID"));
+        
+        if ("QRIS".equalsIgnoreCase(payment)) {
+            view.getTxtAmountPaid().setText(String.valueOf((int) grandTotal));
+            view.getTxtAmountPaid().setDisable(true);
+            view.getLblChange().setText("Rp 0");
+            view.getLblChange().setTextFill(Color.web("#4CAF50")); // Green
+        } else {
+            view.getTxtAmountPaid().setDisable(false);
+            String paidText = view.getTxtAmountPaid().getText().trim();
+            if (paidText.isEmpty()) {
+                view.getLblChange().setText("Rp 0");
+                view.getLblChange().setTextFill(Color.GRAY);
+                return;
+            }
+            try {
+                double paidAmount = Double.parseDouble(paidText);
+                double change = paidAmount - grandTotal;
+                if (change >= 0) {
+                    view.getLblChange().setText("Rp " + formatter.format(change));
+                    view.getLblChange().setTextFill(Color.web("#4CAF50")); // Green
+                } else {
+                    view.getLblChange().setText("Kurang: Rp " + formatter.format(Math.abs(change)));
+                    view.getLblChange().setTextFill(Color.web("#D32F2F")); // Red
+                }
+            } catch (NumberFormatException ex) {
+                view.getLblChange().setText("Format salah");
+                view.getLblChange().setTextFill(Color.web("#D32F2F"));
+            }
+        }
     }
 
     private void setupActions() {
-        // Logika Hapus Item
-        view.getBtnRemove().setOnAction(e -> {
-            CartItem selected = view.getCartTable().getSelectionModel().getSelectedItem();
-            if (selected != null) {
-                cartItems.remove(selected);
-                updateTotal();
-            } else {
-                showAlert(Alert.AlertType.WARNING, "Pilih Item", "Klik dulu item di keranjang yang mau dihapus!");
-            }
+        // Logika Bersihkan Keranjang
+        view.getBtnClearCart().setOnAction(e -> {
+            cartItems.clear();
+            view.getTxtCatatan().clear();
+            view.getTxtAmountPaid().clear();
+            view.getCmbDiscount().setValue("0%");
+            view.getCmbPayment().setValue("CASH");
+            updateTotal();
         });
         
         // Logika Bayar
@@ -259,30 +351,193 @@ public class CashierController {
                 return;
             }
             
-            double total = 0;
+            double subtotal = 0;
             List<TransactionItem> dbItems = new ArrayList<>();
             for (CartItem ci : cartItems) {
-                total += ci.getSubtotal();
+                subtotal += ci.getSubtotal();
                 TransactionItem ti = new TransactionItem(0, 0, ci.getMenuId(), ci.getQty(), ci.getSubtotal());
                 dbItems.add(ti);
             }
             
-            Transaction tx = new Transaction(0, total, view.getCmbPayment().getValue(), view.getTxtCatatan().getText(), LocalDateTime.now());
+            // Re-calculate values for DB and Receipt
+            String discStr = view.getCmbDiscount().getValue();
+            double discPercent = 0;
+            if (discStr != null) {
+                discPercent = Double.parseDouble(discStr.replace("%", ""));
+            }
+            double discountAmount = subtotal * (discPercent / 100);
+            double taxableAmount = subtotal - discountAmount;
+            double taxAmount = taxableAmount * 0.10;
+            double grandTotal = taxableAmount + taxAmount;
+            
+            String paidText = view.getTxtAmountPaid().getText().trim();
+            double paidAmount = grandTotal;
+            if (!"QRIS".equalsIgnoreCase(view.getCmbPayment().getValue())) {
+                if (paidText.isEmpty()) {
+                    showAlert(Alert.AlertType.WARNING, "Uang Belum Diinput", "Masukkan nominal uang dibayar pelanggan terlebih dahulu!");
+                    return;
+                }
+                try {
+                    paidAmount = Double.parseDouble(paidText);
+                    if (paidAmount < grandTotal) {
+                        showAlert(Alert.AlertType.WARNING, "Uang Kurang", "Nominal uang dibayar kurang dari total tagihan!");
+                        return;
+                    }
+                } catch (NumberFormatException ex) {
+                    showAlert(Alert.AlertType.WARNING, "Format Uang Salah", "Nominal uang dibayar harus berupa angka!");
+                    return;
+                }
+            }
+            double changeAmount = paidAmount - grandTotal;
+            
+            // Format notes/catatan untuk database
+            StringBuilder notesBuilder = new StringBuilder();
+            if (discPercent > 0) {
+                notesBuilder.append("[Diskon: ").append(discStr).append("] ");
+            }
+            notesBuilder.append("[Pajak PB1: 10%] ");
+            String userNote = view.getTxtCatatan().getText().trim();
+            if (!userNote.isEmpty()) {
+                notesBuilder.append("Catatan: ").append(userNote);
+            }
+            
+            Transaction tx = new Transaction(0, grandTotal, view.getCmbPayment().getValue(), notesBuilder.toString(), LocalDateTime.now());
             
             boolean success = transactionDAO.saveTransaction(tx, dbItems);
             if (success) {
-                showAlert(Alert.AlertType.INFORMATION, "Sukses!", "Pembayaran berhasil disimpan. Terima kasih!");
+                // Generate Receipt String
+                String receiptText = generateReceiptText(subtotal, discPercent, discountAmount, taxAmount, grandTotal, paidAmount, changeAmount, userNote);
+                
+                // Save receipt to a text file
+                try {
+                    java.nio.file.Path receiptsDir = java.nio.file.Paths.get("receipts");
+                    if (!java.nio.file.Files.exists(receiptsDir)) {
+                        java.nio.file.Files.createDirectories(receiptsDir);
+                    }
+                    String filename = "receipt_" + System.currentTimeMillis() + ".txt";
+                    java.nio.file.Files.writeString(receiptsDir.resolve(filename), receiptText);
+                } catch (Exception ex) {
+                    System.err.println("Gagal mencetak struk ke file: " + ex.getMessage());
+                }
+                
+                showAlert(Alert.AlertType.INFORMATION, "Sukses!", "Pembayaran berhasil disimpan. Struk telah dicetak.");
                 cartItems.clear();
-                updateTotal();
-                // Sengaja kosongin search dan filter ke default lagi pas abis bayar biar lega
                 view.getTxtSearch().clear();
                 view.getCmbFilter().setValue("SEMUA");
                 view.getTxtCatatan().clear();
+                view.getTxtAmountPaid().clear();
+                view.getCmbDiscount().setValue("0%");
+                view.getCmbPayment().setValue("CASH");
+                updateTotal();
                 loadMenus(); 
+                
+                // Show receipt pop-up dialog
+                showReceiptDialog(receiptText);
             } else {
                 showAlert(Alert.AlertType.ERROR, "Waduh Error", "Gagal menyimpan transaksi ke database.");
             }
         });
+
+        // Setup shortcut keyboard
+        view.getView().sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene != null) {
+                newScene.setOnKeyPressed(event -> {
+                    switch (event.getCode()) {
+                        case F3:
+                            view.getTxtSearch().requestFocus();
+                            event.consume();
+                            break;
+                        case F5:
+                            view.getBtnPay().fire();
+                            event.consume();
+                            break;
+                        case ESCAPE:
+                            view.getBtnClearCart().fire();
+                            event.consume();
+                            break;
+                        default:
+                            break;
+                    }
+                });
+            }
+        });
+    }
+
+    private String generateReceiptText(double subtotal, double discPercent, double discountAmount, double taxAmount, double grandTotal, double paidAmount, double changeAmount, String userNote) {
+        java.text.NumberFormat formatter = java.text.NumberFormat.getInstance(new java.util.Locale("id", "ID"));
+        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss");
+        
+        StringBuilder sb = new StringBuilder();
+        sb.append("================================\n");
+        sb.append("           RESTOMATE            \n");
+        sb.append("================================\n");
+        sb.append("Tanggal : ").append(LocalDateTime.now().format(dtf)).append("\n");
+        sb.append("Kasir   : admin\n");
+        sb.append("--------------------------------\n");
+        
+        for (CartItem ci : cartItems) {
+            String nameLine = ci.namaProperty().get();
+            if (nameLine.length() > 18) {
+                nameLine = nameLine.substring(0, 15) + "...";
+            }
+            String qtyPrice = ci.getQty() + "x";
+            String subtotalStr = formatter.format(ci.getSubtotal());
+            
+            int spaces = 32 - nameLine.length() - subtotalStr.length();
+            if (spaces < 1) spaces = 1;
+            sb.append(nameLine).append(" ".repeat(spaces)).append(subtotalStr).append("\n");
+            sb.append("  ").append(qtyPrice).append("\n");
+        }
+        sb.append("--------------------------------\n");
+        
+        String subtotalStr = "Rp " + formatter.format(subtotal);
+        sb.append("Subtotal:").append(" ".repeat(32 - 9 - subtotalStr.length())).append(subtotalStr).append("\n");
+        
+        if (discPercent > 0) {
+            String discStr = "-Rp " + formatter.format(discountAmount);
+            String discLabel = "Diskon (" + (int) discPercent + "%):";
+            sb.append(discLabel).append(" ".repeat(32 - discLabel.length() - discStr.length())).append(discStr).append("\n");
+        }
+        
+        String taxStr = "Rp " + formatter.format(taxAmount);
+        sb.append("Pajak PB1 (10%):").append(" ".repeat(32 - 16 - taxStr.length())).append(taxStr).append("\n");
+        sb.append("--------------------------------\n");
+        
+        String grandTotalStr = "Rp " + formatter.format(grandTotal);
+        sb.append("TOTAL:").append(" ".repeat(32 - 6 - grandTotalStr.length())).append(grandTotalStr).append("\n");
+        
+        String method = view.getCmbPayment().getValue();
+        sb.append("Metode:").append(" ".repeat(32 - 7 - method.length())).append(method).append("\n");
+        
+        String paidStr = "Rp " + formatter.format(paidAmount);
+        sb.append("Dibayar:").append(" ".repeat(32 - 8 - paidStr.length())).append(paidStr).append("\n");
+        
+        String changeStr = "Rp " + formatter.format(changeAmount);
+        sb.append("Kembalian:").append(" ".repeat(32 - 10 - changeStr.length())).append(changeStr).append("\n");
+        
+        if (userNote != null && !userNote.trim().isEmpty()) {
+            sb.append("--------------------------------\n");
+            sb.append("Catatan: ").append(userNote).append("\n");
+        }
+        sb.append("================================\n");
+        sb.append("Terima kasih atas kunjungan Anda\n");
+        sb.append("================================\n");
+        
+        return sb.toString();
+    }
+
+    private void showReceiptDialog(String receiptText) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Struk Pembayaran");
+        alert.setHeaderText("Transaksi Berhasil & Struk Dicetak!");
+        
+        TextArea textArea = new TextArea(receiptText);
+        textArea.setEditable(false);
+        textArea.setFont(Font.font("Consolas", 12));
+        textArea.setPrefSize(350, 450);
+        
+        alert.getDialogPane().setContent(textArea);
+        alert.showAndWait();
     }
 
     private void showAlert(Alert.AlertType type, String title, String content) {

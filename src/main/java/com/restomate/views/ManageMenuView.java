@@ -26,8 +26,19 @@ public class ManageMenuView {
     private ComboBox<String> cmbKategori;
     private CheckBox chkDingin;
     private Button btnSave, btnClear;
-    private Button btnPilihGambar;
-    private Label lblNamaGambar;
+    
+    // Stats labels
+    private Label lblTotalMenu;
+    private Label lblTotalMakanan;
+    private Label lblTotalMinuman;
+    private Label lblTotalKritis;
+    
+    // CSV buttons
+    private Button btnExportCsv;
+    private Button btnImportCsv;
+    
+    // Duplication button
+    private Button btnDuplicate;
     
     private Label lblPedas;
 
@@ -48,6 +59,9 @@ public class ManageMenuView {
     
     private VBox buildCenterArea() {
         VBox centerBox = new VBox(15);
+        
+        // 0. Stats Bar
+        HBox statsBar = buildStatsBar();
         
         // 1. Top Bar: Pencarian & Filter
         HBox topBar = new HBox(15);
@@ -70,19 +84,76 @@ public class ManageMenuView {
         tableMenu.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         VBox.setVgrow(tableMenu, Priority.ALWAYS);
         
-        // 3. Bottom Bar: Tombol Hapus (Dikeluarin dari form biar lebih masuk akal)
-        HBox bottomBar = new HBox();
-        bottomBar.setAlignment(Pos.CENTER_RIGHT);
+        // 3. Bottom Bar: Tombol Hapus & Impor/Ekspor
+        HBox bottomBar = new HBox(15);
+        bottomBar.setAlignment(Pos.CENTER_LEFT);
         
+        btnImportCsv = new Button("📥 Impor CSV");
+        btnImportCsv.setStyle("-fx-background-color: #E0E0E0; -fx-text-fill: #333333; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 5;");
+        btnImportCsv.setOnMouseEntered(e -> btnImportCsv.setStyle("-fx-background-color: #BDBDBD; -fx-text-fill: #333333; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 5; -fx-cursor: hand;"));
+        btnImportCsv.setOnMouseExited(e -> btnImportCsv.setStyle("-fx-background-color: #E0E0E0; -fx-text-fill: #333333; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 5;"));
+
+        btnExportCsv = new Button("📤 Ekspor CSV");
+        btnExportCsv.setStyle("-fx-background-color: #E0E0E0; -fx-text-fill: #333333; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 5;");
+        btnExportCsv.setOnMouseEntered(e -> btnExportCsv.setStyle("-fx-background-color: #BDBDBD; -fx-text-fill: #333333; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 5; -fx-cursor: hand;"));
+        btnExportCsv.setOnMouseExited(e -> btnExportCsv.setStyle("-fx-background-color: #E0E0E0; -fx-text-fill: #333333; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 5;"));
+
         btnDelete = new Button("🗑️ Hapus Menu Terpilih");
         btnDelete.setStyle("-fx-background-color: #FF5252; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 5;");
         btnDelete.setOnMouseEntered(e -> btnDelete.setStyle("-fx-background-color: #D32F2F; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 5; -fx-cursor: hand;"));
         btnDelete.setOnMouseExited(e -> btnDelete.setStyle("-fx-background-color: #FF5252; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 5;"));
         
-        bottomBar.getChildren().add(btnDelete);
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
         
-        centerBox.getChildren().addAll(topBar, tableMenu, bottomBar);
+        bottomBar.getChildren().addAll(btnImportCsv, btnExportCsv, spacer, btnDelete);
+        
+        centerBox.getChildren().addAll(statsBar, topBar, tableMenu, bottomBar);
         return centerBox;
+    }
+
+    private HBox buildStatsBar() {
+        HBox bar = new HBox(15);
+        bar.setPadding(new Insets(5, 0, 5, 0));
+        bar.setAlignment(Pos.CENTER);
+        
+        VBox cardTotal = createStatsCard("TOTAL MENU", lblTotalMenu = new Label("0"), "#E3F2FD", "#1565C0");
+        VBox cardMakanan = createStatsCard("MAKANAN", lblTotalMakanan = new Label("0"), "#E8F5E9", "#2E7D32");
+        VBox cardMinuman = createStatsCard("MINUMAN", lblTotalMinuman = new Label("0"), "#FFF3E0", "#E65100");
+        VBox cardKritis = createStatsCard("STOK KRITIS (<10)", lblTotalKritis = new Label("0"), "#FFEBEE", "#C62828");
+        
+        HBox.setHgrow(cardTotal, Priority.ALWAYS);
+        HBox.setHgrow(cardMakanan, Priority.ALWAYS);
+        HBox.setHgrow(cardMinuman, Priority.ALWAYS);
+        HBox.setHgrow(cardKritis, Priority.ALWAYS);
+        
+        bar.getChildren().addAll(cardTotal, cardMakanan, cardMinuman, cardKritis);
+        return bar;
+    }
+    
+    private VBox createStatsCard(String title, Label lblValue, String bgHex, String textHex) {
+        VBox card = new VBox(5);
+        card.setPadding(new Insets(10));
+        card.setAlignment(Pos.CENTER);
+        card.setBackground(new Background(new BackgroundFill(Color.web(bgHex), new CornerRadii(8), Insets.EMPTY)));
+        card.setBorder(new Border(new BorderStroke(Color.web(textHex, 0.2), BorderStrokeStyle.SOLID, new CornerRadii(8), BorderWidths.DEFAULT)));
+        
+        Label lblTitle = new Label(title);
+        lblTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 10));
+        lblTitle.setTextFill(Color.web(textHex));
+        
+        lblValue.setFont(Font.font("Segoe UI", FontWeight.BOLD, 20));
+        lblValue.setTextFill(Color.web(textHex));
+        
+        card.getChildren().addAll(lblTitle, lblValue);
+        
+        DropShadow shadow = new DropShadow();
+        shadow.setColor(Color.color(0, 0, 0, 0.05));
+        shadow.setRadius(5);
+        shadow.setOffsetY(2);
+        card.setEffect(shadow);
+        
+        return card;
     }
     
     private VBox buildFormArea() {
@@ -155,13 +226,6 @@ public class ManageMenuView {
         Label l4 = new Label("Harga:"); l4.setFont(Font.font("Segoe UI", 14));
         Label l5 = new Label("Stok:"); l5.setFont(Font.font("Segoe UI", 14));
         
-        btnPilihGambar = new Button("Pilih Gambar...");
-        lblNamaGambar = new Label("Belum ada gambar");
-        lblNamaGambar.setTextFill(Color.GRAY);
-        HBox boxImg = new HBox(10, btnPilihGambar, lblNamaGambar);
-        boxImg.setAlignment(Pos.CENTER_LEFT);
-        Label lblImg = new Label("Gambar:"); lblImg.setFont(Font.font("Segoe UI", 14));
-        
         // Kita masukkan SEKARANG field spesifik (Level Pedas & Dingin) ke dalam GridPane
         // biar posisinya benar-benar sejajar dengan isian yang lain
         grid.add(l1, 0, 0); grid.add(txtId, 1, 0);
@@ -169,9 +233,8 @@ public class ManageMenuView {
         grid.add(l3, 0, 2); grid.add(cmbKategori, 1, 2);
         grid.add(l4, 0, 3); grid.add(txtHarga, 1, 3);
         grid.add(l5, 0, 4); grid.add(txtStok, 1, 4);
-        grid.add(lblImg, 0, 5); grid.add(boxImg, 1, 5);
-        grid.add(lblPedas, 0, 6); grid.add(txtTingkatPedas, 1, 6);
-        grid.add(chkDingin, 1, 7); 
+        grid.add(lblPedas, 0, 5); grid.add(txtTingkatPedas, 1, 5);
+        grid.add(chkDingin, 1, 6); 
         
         // Default awal: Dingin disembunyikan karena kategori awal adalah MAKANAN
         chkDingin.setVisible(false);
@@ -201,13 +264,19 @@ public class ManageMenuView {
         btnSave.setOnMouseEntered(e -> btnSave.setStyle("-fx-background-color: #45A049; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12; -fx-font-size: 14px; -fx-background-radius: 5; -fx-cursor: hand;"));
         btnSave.setOnMouseExited(e -> btnSave.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12; -fx-font-size: 14px; -fx-background-radius: 5;"));
         
+        btnDuplicate = new Button("👥 Duplikat Menu Terpilih");
+        btnDuplicate.setMaxWidth(Double.MAX_VALUE);
+        btnDuplicate.setStyle("-fx-background-color: #2196F3; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12; -fx-font-size: 14px; -fx-background-radius: 5;");
+        btnDuplicate.setOnMouseEntered(e -> btnDuplicate.setStyle("-fx-background-color: #1976D2; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12; -fx-font-size: 14px; -fx-background-radius: 5; -fx-cursor: hand;"));
+        btnDuplicate.setOnMouseExited(e -> btnDuplicate.setStyle("-fx-background-color: #2196F3; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12; -fx-font-size: 14px; -fx-background-radius: 5;"));
+
         btnClear = new Button("✨ Bersihkan Form");
         btnClear.setMaxWidth(Double.MAX_VALUE);
         btnClear.setStyle("-fx-background-color: #F5F5F5; -fx-text-fill: #333333; -fx-font-weight: bold; -fx-padding: 12; -fx-font-size: 14px; -fx-border-color: #E0E0E0; -fx-border-radius: 5; -fx-background-radius: 5;");
         btnClear.setOnMouseEntered(e -> btnClear.setStyle("-fx-background-color: #E0E0E0; -fx-text-fill: #333333; -fx-font-weight: bold; -fx-padding: 12; -fx-font-size: 14px; -fx-border-color: #BDBDBD; -fx-border-radius: 5; -fx-background-radius: 5; -fx-cursor: hand;"));
         btnClear.setOnMouseExited(e -> btnClear.setStyle("-fx-background-color: #F5F5F5; -fx-text-fill: #333333; -fx-font-weight: bold; -fx-padding: 12; -fx-font-size: 14px; -fx-border-color: #E0E0E0; -fx-border-radius: 5; -fx-background-radius: 5;"));
         
-        actionBox.getChildren().addAll(btnSave, btnClear);
+        actionBox.getChildren().addAll(btnSave, btnDuplicate, btnClear);
         
         formCard.getChildren().addAll(lblTitle, grid, actionBox);
         return formCard;
@@ -229,7 +298,15 @@ public class ManageMenuView {
     public CheckBox getChkDingin() { return chkDingin; }
     public Button getBtnSave() { return btnSave; }
     public Button getBtnClear() { return btnClear; }
-    public Button getBtnPilihGambar() { return btnPilihGambar; }
-    public Label getLblNamaGambar() { return lblNamaGambar; }
+    
+    public Label getLblTotalMenu() { return lblTotalMenu; }
+    public Label getLblTotalMakanan() { return lblTotalMakanan; }
+    public Label getLblTotalMinuman() { return lblTotalMinuman; }
+    public Label getLblTotalKritis() { return lblTotalKritis; }
+    
+    public Button getBtnExportCsv() { return btnExportCsv; }
+    public Button getBtnImportCsv() { return btnImportCsv; }
+    public Button getBtnDuplicate() { return btnDuplicate; }
+
     public ManageMenuController getController() { return controller; }
 }

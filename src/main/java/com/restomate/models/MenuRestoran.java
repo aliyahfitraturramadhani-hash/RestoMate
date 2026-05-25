@@ -6,15 +6,13 @@ public abstract class MenuRestoran {
     private double harga;
     private int stok;
     private String kategori;
-    private String gambar;
 
-    public MenuRestoran(int id, String nama, double harga, int stok, String kategori, String gambar) {
+    public MenuRestoran(int id, String nama, double harga, int stok, String kategori) {
         this.id = id;
         this.nama = nama;
         setHarga(harga);
         setStok(stok);
         this.kategori = kategori;
-        this.gambar = gambar;
     }
     
     public MenuRestoran() {}
@@ -39,9 +37,6 @@ public abstract class MenuRestoran {
     
     public String getKategori() { return kategori; }
     public void setKategori(String kategori) { this.kategori = kategori; }
-    
-    public String getGambar() { return gambar; }
-    public void setGambar(String gambar) { this.gambar = gambar; }
 
     public abstract void tampilkanDetail();
 }

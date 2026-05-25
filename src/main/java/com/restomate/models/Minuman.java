@@ -3,8 +3,8 @@ package com.restomate.models;
 public class Minuman extends MenuRestoran {
     private boolean isDingin;
 
-    public Minuman(int id, String nama, double harga, int stok, String gambar, boolean isDingin) {
-        super(id, nama, harga, stok, "MINUMAN", gambar);
+    public Minuman(int id, String nama, double harga, int stok, boolean isDingin) {
+        super(id, nama, harga, stok, "MINUMAN");
         this.isDingin = isDingin;
     }
     
